@@ -33,13 +33,14 @@ function ft_preamble(cmd, varargin)
 
 % ideally this would be a script, because the local variables would then be
 % shared with the calling function. Instead, this is a function which then
-% passes the variables explicitly to another script which is eval'ed.
+% passes the variables explicitely to another script which is eval'ed.
 
 % the following section ensures that these scripts are included as
 % dependencies when using the MATLAB compiler
 %
 %#function ft_preamble_init
 %#function ft_preamble_debug
+%#function ft_preamble_trackconfig
 %#function ft_preamble_provenance
 %#function ft_preamble_loadvar
 %#function ft_preamble_randomseed
@@ -80,3 +81,4 @@ if ~cmd_exists
 end
 
 evalin('caller', full_cmd);
+

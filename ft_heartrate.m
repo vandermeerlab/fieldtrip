@@ -21,9 +21,7 @@ function [dataout] = ft_heartrate(cfg, datain)
 % For the 'findpeaks' method the following additional options can be specified
 %   cfg.envelopewindow   = scalar, time in seconds (default = 10)
 %   cfg.peakseparation   = scalar, time in seconds
-%   cfg.threshold        = scalar, usually between 0 and 1 (default = 0.4), 'MinPeakHeight' parameter for findpeaks function
-%   cfg.mindistance      = scalar, time in seconds for the minimal distance between consecutive peaks (default = 0), 
-%                          'MinPeakDistance' for findpeaks functions (after conversion from seconds into samples)
+%   cfg.threshold        = scalar, usually between 0 and 1 (default = 0.4)
 %   cfg.flipsignal       = 'yes' or 'no', whether to flip the polarity of the signal (default is automatic)
 % and the data can be preprocessed on the fly using
 %   cfg.preproc.bpfilter = 'yes' or 'no'
@@ -86,6 +84,7 @@ ft_preamble init
 ft_preamble debug
 ft_preamble loadvar    datain
 ft_preamble provenance datain
+ft_preamble trackconfig
 
 % the ft_abort variable is set to true or false in ft_preamble_init
 if ft_abort
@@ -110,7 +109,6 @@ cfg.method           = ft_getopt(cfg, 'method', 'findpeaks');
 cfg.envelopewindow   = ft_getopt(cfg, 'envelopewindow', 10);  % in seconds
 cfg.peakseparation   = ft_getopt(cfg, 'peakseparation', []);  % in seconds
 cfg.threshold        = ft_getopt(cfg, 'threshold', 0.4);      % between 0 and 1
-cfg.mindistance      = ft_getopt(cfg, 'mindistance', 0);
 cfg.feedback         = ft_getopt(cfg, 'feedback', 'yes');
 cfg.preproc          = ft_getopt(cfg, 'preproc', []);
 cfg.flipsignal       = ft_getopt(cfg, 'flipsignal', []);
@@ -208,7 +206,7 @@ switch cfg.method
       end
       
       % find the sample numbers where the filtered value increases above the threshold
-      [vals, peaks] = findpeaks(dat, 'MinPeakHeight', cfg.threshold, 'MinPeakDistance', round(cfg.mindistance*fsample));
+      [vals, peaks] = findpeaks(dat, 'MinPeakHeight', cfg.threshold);
       
       if istrue(cfg.feedback)
         subplot(4,1,3)
@@ -305,6 +303,7 @@ end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 ft_postamble debug
+ft_postamble trackconfig
 ft_postamble previous   datain
 ft_postamble provenance dataout
 ft_postamble history    dataout

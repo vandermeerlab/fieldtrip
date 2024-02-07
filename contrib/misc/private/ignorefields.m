@@ -91,6 +91,7 @@ switch purpose
       'spmversion'
       'toolbox'
       'trackcallinfo'
+      'trackconfig'
       'trackdatainfo'
       'trackusage'
       'version'
@@ -108,6 +109,7 @@ switch purpose
       'previous'
       'showcallinfo'
       'trackcallinfo'
+      'trackconfig'
       'trackdatainfo'
       'trackusage'
       'version'
@@ -124,6 +126,7 @@ switch purpose
       'reproducescript'
       'showcallinfo'
       'trackcallinfo'
+      'trackconfig'
       'trackdatainfo'
       'trackusage'
       'warning'
@@ -144,11 +147,38 @@ switch purpose
       'showcallinfo'
       'toolbox'
       'trackcallinfo'
+      'trackconfig'
       'trackdatainfo'
       'trackusage'
       'version'
       'warning'
       'event'
+      };
+
+  case 'trackconfig'
+    ignore = {
+      % these fields from the user should be ignored
+      'artfctdef'
+      'artifact'
+      'checksize'
+      'event'
+      'trl'
+      'trlold'
+      % these fields are for internal usage only
+      'callinfo'
+      'checkconfig'
+      'checksize'
+      'debug'
+      'hastoolbox'
+      'notification'
+      'previous'
+      'showcallinfo'
+      'trackcallinfo'
+      'trackconfig'
+      'trackdatainfo'
+      'trackusage'
+      'version'
+      'warning'
       };
 
   case 'checksize'
@@ -200,6 +230,7 @@ switch purpose
       'showcallinfo'
       'sourcemodel'
       'trackcallinfo'
+      'trackconfig'
       'trackdatainfo'
       'trackusage'
       'warning'
@@ -251,3 +282,4 @@ switch purpose
   otherwise
     ft_error('invalid purpose');
 end % switch purpose
+

@@ -30,7 +30,7 @@ function opt = ft_setopt(opt, key, val)
 %
 % $Id$
 
-if isa(opt, 'struct')
+if isa(opt, 'struct') || isa(opt, 'config')
 
   % just replace or add the option
   opt.(key) = val;
@@ -49,7 +49,7 @@ elseif isa(opt, 'cell')
     valindex = keyindex+1;
     opt{valindex} = val;
   elseif length(sel)>1
-    % first remove all occurrences
+    % first remove all occurences
     keyindex = 2*sel-1;
     valindex = keyindex+1;
     opt([keyindex valindex]) = [];

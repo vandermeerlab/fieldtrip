@@ -71,9 +71,8 @@ function [source] = ft_sourceanalysis(cfg, data, baseline)
 %   cfg.numpermutation     = number, e.g. 500 or 'all'
 %
 % If you have not specified a sourcemodel with pre-computed leadfields, the leadfield
-% for each source position will be computed on the fly, in the lower level function that
-% is called for the heavy lifting. In that case you can modify parameters for the forward
-% computation, e.g. by reducing the rank (i.e. remove the weakest orientation), or by
+% for each source position will be computed on the fly. In that case you can modify
+% the leadfields by reducing the rank (i.e. remove the weakest orientation), or by
 % normalizing each column.
 %   cfg.reducerank      = 'no', or number (default = 3 for EEG, 2 for MEG)
 %   cfg.backproject     = 'yes' or 'no',  determines when reducerank is applied whether the
@@ -88,24 +87,20 @@ function [source] = ft_sourceanalysis(cfg, data, baseline)
 %   cfg.channel       = Nx1 cell-array with selection of channels (default = 'all'), see FT_CHANNELSELECTION for details
 %   cfg.frequency     = single number (in Hz)
 %   cfg.latency       = single number in seconds, for time-frequency analysis
+%   cfg.lambda        = number or empty for automatic default
+%   cfg.kappa         = number or empty for automatic default
+%   cfg.tol           = number or empty for automatic default
 %   cfg.refchan       = reference channel label (for coherence)
 %   cfg.refdip        = reference dipole location (for coherence)
 %   cfg.supchan       = suppressed channel label(s)
 %   cfg.supdip        = suppressed dipole location(s)
 %   cfg.keeptrials    = 'no' or 'yes'
 %   cfg.keepleadfield = 'no' or 'yes'
-%
-% Some options need to be specified as method specific options, and determine the low-level computation of the inverse operator.
-% The functionality (and applicability) of the (sub-)options are documented in the lower-level ft_inverse_<method> functions. 
-% Replace <method> with one of the supported methods.  
-%   cfg.<method>.lambda        = number or empty for automatic default
-%   cfg.<method>.kappa         = number or empty for automatic default
-%   cfg.<method>.tol           = number or empty for automatic default
-%   cfg.<method>.projectnoise  = 'no' or 'yes'
-%   cfg.<method>.keepfilter    = 'no' or 'yes'
-%   cfg.<method>.keepcsd       = 'no' or 'yes'
-%   cfg.<method>.keepmom       = 'no' or 'yes'
-%   cfg.<method>.feedback      = 'no', 'text', 'textbar', 'gui' (default = 'text')
+%   cfg.projectnoise  = 'no' or 'yes'
+%   cfg.keepfilter    = 'no' or 'yes'
+%   cfg.keepcsd       = 'no' or 'yes'
+%   cfg.keepmom       = 'no' or 'yes'
+%   cfg.feedback      = 'no', 'text', 'textbar', 'gui' (default = 'text')
 %
 % The volume conduction model of the head should be specified as
 %   cfg.headmodel     = structure with volume conduction model, see FT_PREPARE_HEADMODEL
@@ -129,7 +124,7 @@ function [source] = ft_sourceanalysis(cfg, data, baseline)
 % cfg.numcomponents
 % cfg.refchannel
 % cfg.trialweight   = 'equal' or 'proportional'
-% cfg.<method>.powmethod     = 'lambda1' or 'trace'
+% cfg.powmethod     = 'lambda1' or 'trace'
 
 % Copyright (c) 2003-2008, F.C. Donders Centre, Robert Oostenveld
 %
@@ -162,6 +157,7 @@ ft_preamble init
 ft_preamble debug
 ft_preamble loadvar data baseline
 ft_preamble provenance data baseline
+ft_preamble trackconfig
 
 % the ft_abort variable is set to true or false in ft_preamble_init
 if ft_abort
@@ -172,10 +168,10 @@ end
 hasbaseline = exist('baseline', 'var');
 
 % check if the input data is valid for this function
-data = ft_checkdata(data, 'datatype', {'comp', 'timelock', 'freq'}, 'feedback', 'yes');
+data = ft_checkdata(data, 'datatype', {'timelock', 'freq', 'comp'}, 'feedback', 'yes');
 
 if hasbaseline
-  baseline = ft_checkdata(baseline, 'datatype', {'comp', 'timelock', 'freq'}, 'feedback', 'yes');
+  baseline = ft_checkdata(baseline, 'datatype', {'timelock', 'freq', 'comp'}, 'feedback', 'yes');
 end
 
 % check if the input cfg is valid for this function
@@ -311,7 +307,7 @@ cfg.channel = ft_channelselection([cfg.channel(:); cfg.supchan(:)], data.label);
 source = [];
 
 if istimelock
-  tmpcfg = keepfields(cfg, {'channel', 'latency', 'showcallinfo', 'trackcallinfo', 'trackusage', 'trackdatainfo', 'trackmeminfo', 'tracktimeinfo', 'checksize'});
+  tmpcfg = keepfields(cfg, {'channel', 'latency', 'showcallinfo', 'trackcallinfo', 'trackconfig', 'trackusage', 'trackdatainfo', 'trackmeminfo', 'tracktimeinfo'});
   % keep the time axis in the output
   tmpcfg.avgovertime = 'no';
   data = ft_selectdata(tmpcfg, data);
@@ -322,7 +318,7 @@ if istimelock
   source = copyfields(data, source, {'time'});
   
 elseif isfreq
-  tmpcfg = keepfields(cfg, {'channel', 'latency', 'frequency', 'nanmean', 'showcallinfo', 'trackcallinfo', 'trackusage', 'trackdatainfo', 'trackmeminfo', 'tracktimeinfo', 'checksize'});
+  tmpcfg = keepfields(cfg, {'channel', 'latency', 'frequency', 'nanmean', 'showcallinfo', 'trackcallinfo', 'trackconfig', 'trackusage', 'trackdatainfo', 'trackmeminfo', 'tracktimeinfo'});
   
   if ismember(cfg.method, {'pcc' 'dics'})
     tmpcfg.avgoverfreq = 'yes';
@@ -382,7 +378,7 @@ if ~isempty(cfg.refdip) || ~isempty(cfg.supdip)
   [headmodel, sens, cfg] = prepare_headmodel(cfg, data);
   
   % construct the dipole positions on which the source reconstruction will be done
-  tmpcfg           = keepfields(cfg, {'sourcemodel', 'mri', 'headshape', 'symmetry', 'smooth', 'threshold', 'spheremesh', 'inwardshift', 'xgrid', 'ygrid', 'zgrid', 'resolution', 'tight', 'warpmni', 'template', 'reducerank', 'backproject', 'normalize', 'normalizeparam', 'weight', 'showcallinfo', 'trackcallinfo', 'trackusage', 'trackdatainfo', 'trackmeminfo', 'tracktimeinfo', 'checksize'});
+  tmpcfg           = keepfields(cfg, {'sourcemodel', 'mri', 'headshape', 'symmetry', 'smooth', 'threshold', 'spheremesh', 'inwardshift', 'xgrid', 'ygrid', 'zgrid', 'resolution', 'tight', 'warpmni', 'template', 'reducerank', 'backproject', 'normalize', 'normalizeparam', 'weight', 'showcallinfo', 'trackcallinfo', 'trackconfig', 'trackusage', 'trackdatainfo', 'trackmeminfo', 'tracktimeinfo'});
   tmpcfg.headmodel = headmodel;
   if ft_senstype(sens, 'eeg')
     tmpcfg.elec = sens;
@@ -468,7 +464,7 @@ elseif istrue(cfg.keepleadfield) || istrue(cfg.permutation) || istrue(cfg.random
   [headmodel, sens, cfg] = prepare_headmodel(cfg, data);
   
   % construct the dipole positions on which the source reconstruction will be done
-  tmpcfg           = keepfields(cfg, {'sourcemodel', 'mri', 'headshape', 'symmetry', 'smooth', 'threshold', 'spheremesh', 'inwardshift', 'xgrid', 'ygrid', 'zgrid', 'resolution', 'tight', 'warpmni', 'template', 'reducerank', 'backproject', 'normalize', 'normalizeparam', 'weight', 'showcallinfo', 'trackcallinfo', 'trackusage', 'trackdatainfo', 'trackmeminfo', 'tracktimeinfo', 'checksize'});
+  tmpcfg           = keepfields(cfg, {'sourcemodel', 'mri', 'headshape', 'symmetry', 'smooth', 'threshold', 'spheremesh', 'inwardshift', 'xgrid', 'ygrid', 'zgrid', 'resolution', 'tight', 'warpmni', 'template', 'reducerank', 'backproject', 'normalize', 'normalizeparam', 'weight', 'showcallinfo', 'trackcallinfo', 'trackconfig', 'trackusage', 'trackdatainfo', 'trackmeminfo', 'tracktimeinfo'});
   tmpcfg.headmodel = headmodel;
   if ft_senstype(sens, 'eeg')
     tmpcfg.elec = sens;
@@ -489,7 +485,7 @@ else
   [headmodel, sens, cfg] = prepare_headmodel(cfg, data);
   
   % construct the dipole positions on which the source reconstruction will be done
-  tmpcfg           = keepfields(cfg, {'sourcemodel', 'mri', 'headshape', 'symmetry', 'smooth', 'threshold', 'spheremesh', 'inwardshift', 'xgrid', 'ygrid', 'zgrid', 'resolution', 'tight', 'warpmni', 'template', 'reducerank', 'backproject', 'normalize', 'normalizeparam', 'weight', 'showcallinfo', 'trackcallinfo', 'trackusage', 'trackdatainfo', 'trackmeminfo', 'tracktimeinfo', 'checksize'});
+  tmpcfg           = keepfields(cfg, {'sourcemodel', 'mri', 'headshape', 'symmetry', 'smooth', 'threshold', 'spheremesh', 'inwardshift', 'xgrid', 'ygrid', 'zgrid', 'resolution', 'tight', 'warpmni', 'template', 'reducerank', 'backproject', 'normalize', 'normalizeparam', 'weight', 'showcallinfo', 'trackcallinfo', 'trackconfig', 'trackusage', 'trackdatainfo', 'trackmeminfo', 'tracktimeinfo'});
   tmpcfg.headmodel = headmodel;
   if ft_senstype(sens, 'eeg')
     tmpcfg.elec = sens;
@@ -1304,6 +1300,7 @@ end
 
 % do the general cleanup and bookkeeping at the end of the function
 ft_postamble debug
+ft_postamble trackconfig
 ft_postamble previous   data baseline
 ft_postamble provenance source
 ft_postamble history    source

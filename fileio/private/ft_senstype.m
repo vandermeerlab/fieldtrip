@@ -38,8 +38,6 @@ function [type] = ft_senstype(input, desired)
 %   'babysquid74'         this is a BabySQUID system from Tristan Technologies
 %   'artemis123'          this is a BabySQUID system from Tristan Technologies
 %   'magview'             this is a BabySQUID system from Tristan Technologies
-%   'fieldline_v2'
-%   'fieldline_v3'
 %   'egi32'
 %   'egi64'
 %   'egi128'
@@ -83,7 +81,6 @@ function [type] = ft_senstype(input, desired)
 %   'yokogawa'
 %   'itab'
 %   'babysquid'
-%   'fieldline'
 % If you specify the desired type, this function will return a boolean flag
 % indicating true/false depending on the input data.
 %
@@ -99,7 +96,7 @@ function [type] = ft_senstype(input, desired)
 %
 % See also FT_SENSLABEL, FT_CHANTYPE, FT_READ_SENS, FT_COMPUTE_LEADFIELD, FT_DATATYPE_SENS
 
-% Copyright (C) 2007-2023, Robert Oostenveld
+% Copyright (C) 2007-2017, Robert Oostenveld
 %
 % This file is part of FieldTrip, see http://www.fieldtriptoolbox.org
 % for the documentation and details.
@@ -225,14 +222,7 @@ elseif isheader
   elseif isfield(input, 'opto')
     sens   = input.opto;
     isnirs = true;
-  elseif isfield(input, 'orig')
-    % this probably contains further details on the type of sensor array
-    sens = input;
-    if isfield(sens, 'label')
-      islabel = true;
-    end
   elseif isfield(input, 'label')
-    % this is the least informative
     sens.label = input.label;
     islabel    = true;
   end
@@ -261,7 +251,6 @@ end
 
 haschantype = isfield(sens, 'chantype');
 
-type = 'unknown'; % start with the type to be unknown
 if isfield(sens, 'type')
   % preferably the structure specifies its own type
   type = sens.type;
@@ -307,23 +296,14 @@ elseif issubfield(input, 'orig.sys_name')
     % FIXME this might fail if there are many bad channels
     type = 'yokogawa440';
   end
-
-elseif issubfield(input, 'orig.raw.info') && mean(ismember(input.orig.raw.info.ch_names, ft_senstype('neuromag306')))>0.5
-  % this is a complete header that was read from a FIF file
-  type = 'neuromag306';
-
-elseif issubfield(input, 'orig.raw.info') && mean(ismember(input.orig.raw.info.ch_names, ft_senstype('neuromag122')))>0.5
-  % this is a complete header that was read from a FIF file
-  type = 'neuromag122';
-
+  
 elseif issubfield(input, 'orig.FILE.Ext') && strcmp(input.orig.FILE.Ext, 'edf')
   % this is a complete header that was read from an EDF or EDF+ dataset
   type = 'eeg';
   
-end
-
-if strcmp(type, 'unknown')
-  % if it's still unknown, try to determine the proper type by looking at the labels
+else
+  % start with unknown, then try to determine the proper type by looking at the labels
+  type = 'unknown';
   
   if isgrad
     % this looks like MEG
@@ -436,17 +416,7 @@ if strcmp(type, 'unknown')
       type = 'neuromag122_combined';
     elseif all(mean(ismember(ft_senslabel('neuromag122'),          sens.label)) > 0.4)
       type = 'neuromag122';
-
-      % FieldLine OPM system
-    elseif (mean(~cellfun(@isempty, regexp(sens.label, '\d\d:\d\d-B.*'))) > 0.5)
-      type = 'fieldline_v2'; % like 00:01-BZ_OL
-    elseif (mean(startsWith(sens.label, {'L', 'R'}) & endsWith(sens.label, {'bx', 'by', 'bz'})) > 0.5)
-      type = 'fieldline_v3'; % like R407_bz
-    elseif (mean(startsWith(sens.label, {'L', 'R'}) & contains(sens.label, {'bx-s', 'by-s', 'bz-s'})) > 0.5)
-      type = 'fieldline_v3'; % like R407_bz-s32, including the electronics chassis number
-    elseif (mean(startsWith(sens.label, 'FL')))
-      type = 'fieldlinealpha1'; % this is used for the alpha1 helmet
-
+      
     elseif (mean(ismember(ft_senslabel('biosemi256'),         sens.label)) > 0.8)
       type = 'biosemi256';
     elseif (mean(ismember(ft_senslabel('biosemi128'),         sens.label)) > 0.8)
@@ -538,7 +508,7 @@ if ~isempty(desired)
     case 'egi'
       type = any(strcmp(type, {'egi' 'egi32' 'egi64' 'egi128' 'egi256'}));
     case 'meg'
-      type = any(strcmp(type, {'meg' 'ctf' 'ctf64' 'ctf151' 'ctf275' 'ctf151_planar' 'ctf275_planar' 'neuromag' 'neuromag122' 'neuromag306' 'neuromag306_combined' 'bti' 'bti148' 'bti148_planar' 'bti248' 'bti248_planar' 'bti248grad' 'bti248grad_planar' 'yokogawa' 'yokogawa9' 'yokogawa160' 'yokogawa160_planar' 'yokogawa64' 'yokogawa64_planar' 'yokogawa440' 'itab' 'itab28' 'itab153' 'itab153_planar' 'babysquid' 'babysquid74' 'artenis123' 'magview' 'yorkinstruments248', 'fieldline_v2', 'fieldline_v3'}));
+      type = any(strcmp(type, {'meg' 'ctf' 'ctf64' 'ctf151' 'ctf275' 'ctf151_planar' 'ctf275_planar' 'neuromag' 'neuromag122' 'neuromag306' 'neuromag306_combined' 'bti' 'bti148' 'bti148_planar' 'bti248' 'bti248_planar' 'bti248grad' 'bti248grad_planar' 'yokogawa' 'yokogawa9' 'yokogawa160' 'yokogawa160_planar' 'yokogawa64' 'yokogawa64_planar' 'yokogawa440' 'itab' 'itab28' 'itab153' 'itab153_planar' 'babysquid' 'babysquid74' 'artenis123' 'magview' 'yorkinstruments248'}));
     case 'ctf'
       type = any(strcmp(type, {'ctf' 'ctf64' 'ctf151' 'ctf275' 'ctf151_planar' 'ctf275_planar'}));
     case 'bti'
@@ -551,12 +521,9 @@ if ~isempty(desired)
       type = any(strcmp(type, {'yokogawa' 'yokogawa9' 'yokogawa64' 'yokogawa64_planar' 'yokogawa160' 'yokogawa160_planar' 'yokogawa208' 'yokogawa208_planar' 'yokogawa440'}));
     case 'itab'
       type = any(strcmp(type, {'itab' 'itab28' 'itab153' 'itab153_planar'}));
-    case 'fieldline'
-      type = startsWith(type, 'fieldline');
     case 'meg_axial'
       % note that neuromag306 is mixed planar and axial
-      % note that fieldline_v3 might include tangential magnetometers
-      type = any(strcmp(type, {'neuromag306' 'ctf64' 'ctf151' 'ctf275' 'bti148' 'bti248' 'bti248grad' 'yokogawa9' 'yokogawa64' 'yokogawa160' 'yokogawa440', 'fieldline_v2', 'fieldline_v3'}));
+      type = any(strcmp(type, {'neuromag306' 'ctf64' 'ctf151' 'ctf275' 'bti148' 'bti248' 'bti248grad' 'yokogawa9' 'yokogawa64' 'yokogawa160' 'yokogawa440'}));
     case 'meg_planar'
       % note that neuromag306 is mixed planar and axial
       type = any(strcmp(type, {'neuromag122' 'neuromag306' 'ctf151_planar' 'ctf275_planar' 'bti148_planar' 'bti248_planar' 'bti248grad_planar' 'yokogawa208_planar' 'yokogawa160_planar' 'yokogawa64_planar'}));

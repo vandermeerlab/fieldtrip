@@ -60,16 +60,16 @@ elseif isdatetime(val)
 else
   % write [] as 'n/a'
   % write nan as 'n/a'
-  % write boolean as 'true' or 'talse'
+  % write boolean as 'True' or 'False'
   if isempty(val)
     val = 'n/a';
   elseif isnan(val)
     val = 'n/a';
   elseif islogical(val)
     if val
-      val = 'true';
+      val = 'True';
     else
-      val = 'false';
+      val = 'False';
     end
   end
 end

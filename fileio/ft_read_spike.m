@@ -90,7 +90,12 @@ switch spikeformat
     H = ReadHeader(fp);
     fclose(fp);
     % read only from one file
-    S = read_mclust_t({filename});
+    encoding = ft_getopt(varargin, 'encoding');
+    if ~isempty(encoding)
+        S = read_mclust_t({filename}, encoding);
+    else
+        S = read_mclust_t({filename}, 32);
+    end
     spike.hdr = H(:);
     [p, f, x] = fileparts(filename);
     spike.label     = {f};  % use the filename as label for the spike channel

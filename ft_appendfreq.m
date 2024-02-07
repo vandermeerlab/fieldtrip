@@ -59,6 +59,7 @@ ft_preamble init
 ft_preamble debug
 ft_preamble loadvar    varargin
 ft_preamble provenance varargin
+ft_preamble trackconfig
 
 % the ft_abort variable is set to true or false in ft_preamble_init
 if ft_abort
@@ -67,7 +68,7 @@ end
 
 % check if the input data is valid for this function
 for i=1:length(varargin)
-  varargin{i} = ft_checkdata(varargin{i}, 'datatype', {'freq+comp', 'freq'}, 'feedback', 'yes');
+  varargin{i} = ft_checkdata(varargin{i}, 'datatype', {'freq', 'freq+comp'}, 'feedback', 'yes');
 end
 
 % set the defaults
@@ -124,6 +125,7 @@ freq = append_common(cfg, varargin{:});
 
 % do the general cleanup and bookkeeping at the end of the function
 ft_postamble debug
+ft_postamble trackconfig
 ft_postamble previous   varargin
 ft_postamble provenance freq
 ft_postamble history    freq

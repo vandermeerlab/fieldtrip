@@ -312,7 +312,7 @@ for indx=1:Ndata
   end
   
   % time and/or frequency should NOT be selected and averaged here, since a singleplot might follow in interactive mode
-  tmpcfg = keepfields(cfg, {'channel', 'trials', 'showcallinfo', 'trackcallinfo', 'trackusage', 'trackdatainfo', 'trackmeminfo', 'tracktimeinfo', 'checksize'});
+  tmpcfg = keepfields(cfg, {'channel', 'trials', 'showcallinfo', 'trackcallinfo', 'trackconfig', 'trackusage', 'trackdatainfo', 'trackmeminfo', 'tracktimeinfo'});
   if hasrpt
     tmpcfg.avgoverrpt = 'yes';
   else
@@ -568,11 +568,6 @@ for indx=1:Ndata
     if ~isempty(msk)
       msk(nanInds) = [];
     end
-  elseif strcmp(cfg.interpolatenan, 'no') && any(nanInds)
-    if isempty(msk)
-      msk = true(size(dat));
-    end
-    msk(nanInds) = false;
   end
   
   % Set ft_plot_topo specific options

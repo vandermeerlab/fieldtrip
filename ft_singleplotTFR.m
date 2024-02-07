@@ -39,9 +39,7 @@ function [cfg] = ft_singleplotTFR(cfg, data)
 %                        In a interactive plot you can select areas and produce a new
 %                        interactive plot when a selected area is clicked. Multiple areas
 %                        can be selected by holding down the SHIFT key.
-%   cfg.figure         = 'yes' or 'no', whether to open a new figure. You can also specify a figure handle from FIGURE, GCF or SUBPLOT. (default = 'yes')
-%   cfg.position       = location and size of the figure, specified as [left bottom width height] (default is automatic)
-%   cfg.renderer       = string, 'opengl', 'zbuffer', 'painters', see RENDERERINFO (default is automatic, try 'painters' when it crashes)
+%   cfg.renderer       = 'painters', 'zbuffer', ' opengl' or 'none' (default = [])
 %   cfg.directionality = '', 'inflow' or 'outflow' specifies for
 %                       connectivity measures whether the inflow into a
 %                       node, or the outflow from a node is plotted. The
@@ -126,6 +124,7 @@ ft_preamble init
 ft_preamble debug
 ft_preamble loadvar data
 ft_preamble provenance data
+ft_preamble trackconfig
 
 % the ft_abort variable is set to true or false in ft_preamble_init
 if ft_abort
@@ -156,7 +155,6 @@ cfg.xlim           = ft_getopt(cfg, 'xlim',          'maxmin');
 cfg.ylim           = ft_getopt(cfg, 'ylim',          'maxmin');
 cfg.zlim           = ft_getopt(cfg, 'zlim',          'maxmin');
 cfg.fontsize       = ft_getopt(cfg, 'fontsize',       8);
-cfg.interpreter    = ft_getopt(cfg, 'interpreter',   'none');
 cfg.colorbar       = ft_getopt(cfg, 'colorbar',      'yes');
 cfg.colormap       = ft_getopt(cfg, 'colormap',       'default');
 cfg.colorbartext   = ft_getopt(cfg, 'colorbartext',  '');
@@ -227,7 +225,7 @@ if ~strcmp(cfg.baseline, 'no')
 end
 
 % channels should NOT be selected and averaged here, since a topoplot might follow in interactive mode
-tmpcfg = keepfields(cfg, {'trials', 'showcallinfo', 'trackcallinfo', 'trackusage', 'trackdatainfo', 'trackmeminfo', 'tracktimeinfo', 'checksize'});
+tmpcfg = keepfields(cfg, {'trials', 'showcallinfo', 'trackcallinfo', 'trackconfig', 'trackusage', 'trackdatainfo', 'trackmeminfo', 'tracktimeinfo'});
 if hasrpt
   tmpcfg.avgoverrpt = 'yes';
 else
@@ -457,7 +455,7 @@ else
     t = sprintf('mean(%0s)', join_str(', ', cfg.channel));
   end
 end
-title(t, 'fontsize', cfg.fontsize, 'interpreter', cfg.interpreter);
+title(t, 'fontsize', cfg.fontsize);
 
 % set the figure window title, add channel labels if number is small
 if isempty(get(gcf, 'Name'))
@@ -497,6 +495,7 @@ end
 
 % do the general cleanup and bookkeeping at the end of the function
 ft_postamble debug
+ft_postamble trackconfig
 ft_postamble previous data
 ft_postamble provenance
 ft_postamble savefig

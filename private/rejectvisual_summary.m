@@ -143,7 +143,7 @@ metriclist = {'var' 'std' 'min' 'max' 'maxabs' 'range' 'kurtosis' '1/var' 'zvalu
 uicontrol(h, 'Units', 'normalized', 'position', [0.575 0.50 0.24 0.04], 'Style', 'text', 'HorizontalAlignment', 'left', 'backgroundcolor', get(h, 'color'), 'string', 'Metric used:'); % text string for metric
 uicontrol(h, 'Units', 'normalized', 'position', [0.725 0.51 0.20 0.04], 'Style', 'popupmenu', 'backgroundcolor', bgcolor, 'string', metriclist,       'HandleVisibility', 'off', 'callback', @change_metric); % popup menu for metric
 uicontrol(h, 'Units', 'normalized', 'position', [0.575 0.46 0.24 0.04], 'Style', 'text', 'HorizontalAlignment', 'left', 'backgroundcolor', get(h, 'color'), 'string', 'Plot trial:');
-info.plottrltxt = uicontrol(h, 'Units', 'normalized', 'position', [0.725 0.47 0.20 0.04], 'Style', 'edit', 'HorizontalAlignment', 'left', 'backgroundcolor', [1 1 1], 'callback', @plot_trials); % editbox for trial plotting
+info.plottrltxt = uicontrol(h, 'Units', 'normalized', 'position', [0.725 0.47 0.20 0.04], 'Style', 'edit', 'HorizontalAlignment', 'left', 'backgroundcolor', [1 1 1], 'callback', @display_trial); % editbox for trial plotting
 
 % editboxes for manually specifying which channels/trials to toggle on or off
 uicontrol(h, 'Units', 'normalized', 'position', [0.575 0.42 0.24 0.04], 'Style', 'text', 'HorizontalAlignment', 'left', 'backgroundcolor', get(h, 'color'), 'string', 'Toggle trial:');
@@ -363,36 +363,37 @@ end
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function toggle_trials(h, eventdata)
 info = guidata(h);
-
 % process input from the "toggle trials" textbox
-text = get(h, 'string');
+rawtrls = get(h, 'string');
 set(h, 'string', '');
-trls = handle_edit_input(text);
-
-if isempty(trls)
-  update_log(info.output_box, sprintf('Please enter one or more trials'));
-  uiresume
-  return
-elseif any(trls<1)
-  update_log(info.output_box, sprintf('ERROR: Trial value too small!'));
-  uiresume
-  return
-elseif any(trls>length(info.trlsel))
-  update_log(info.output_box, sprintf('ERROR: Trial value too large!'));
-  uiresume
-  return
+if ~isempty(rawtrls)
+  spltrls = regexp(rawtrls, '\s+', 'split');
+  trls = [];
+  for n = 1:length(spltrls)
+    trls(n) = str2num(cell2mat(spltrls(n)));
+  end
 else
-  info.trlsel(trls) = ~info.trlsel(trls);
-  % recalculate the metric
-  compute_metric(h)
-  guidata(h, info);
+  update_log(info.output_box, sprintf('Please enter one or more trials'));
+  uiresume;
+  return;
 end
-uiresume
+try
+  toggle = trls;
+  info.trlsel(toggle) = ~info.trlsel(toggle);
+catch
+  update_log(info.output_box, sprintf('ERROR: Trial value too large!'));
+  uiresume;
+  return;
+end
+% recalculate the metric
+compute_metric(h)
+guidata(h, info);
+uiresume;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % SUBFUNCTION
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function toggle_trials_fill(h, eventdata)
+function toggle_trials_fill(h,eventdata)
 info = guidata(h);
 excludetrltxt = sprintf('%d, ', find(~info.trlsel));
 excludetrltxt = excludetrltxt(1:end-2);
@@ -403,34 +404,50 @@ set(info.plottrltxt, 'string', excludetrltxt)
 % SUBFUNCTION
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function toggle_channels(h, eventdata)
-info = guidata(h);
-
 % process input from the "toggle channels" textbox
-text = get(h, 'string');
+info = guidata(h);
+rawchans = get(h, 'string');
 set(h, 'string', '');
-chans = handle_edit_input(text);                      % this can be 'all' or 'megref'
-chans = ft_channelselection(chans, info.data.label);  % this is a cell-array of strings
-chans = match_str(info.data.label, chans);            % this is a list of numbers
-
-if isempty(chans)
-  update_log(info.output_box, sprintf('Please enter one or more channels'));
-  uiresume
-  return
-elseif any(chans<1)
-  update_log(info.output_box, sprintf('ERROR: Channel value too small!'));
-  uiresume
-  return
-elseif any(chans>length(info.data.label))
-  update_log(info.output_box, sprintf('ERROR: Channel value too large!'));
-  uiresume
-  return
+if ~isempty(rawchans)
+  splchans = regexp(rawchans, '\s+', 'split');
+  chans = zeros(1, length(splchans));
+  % determine whether identifying channels via number or label
+  [junk, junk, junk, procchans] = regexp(rawchans, '([A-Za-z]+|[0-9]{4, })');
+  clear junk;
+  if isempty(procchans)
+    % if using channel numbers
+    for n = 1:length(splchans)
+      chans(n) = str2num(splchans{n});
+    end
+  else
+    % if using channel labels
+    for n = 1:length(splchans)
+      try
+        chans(n) = find(ismember(info.data.label, splchans(n)));
+      catch
+        update_log(info.output_box, sprintf('ERROR: Please ensure the channel name is correct (case-sensitive)!'));
+        uiresume;
+        return;
+      end
+    end
+  end
 else
-  info.chansel(chans) = ~info.chansel(chans);
-  % recalculate the metric
-  compute_metric(h)
-  guidata(h, info);
+  update_log(info.output_box, sprintf('Please enter one or more channels'));
+  uiresume;
+  return;
 end
-uiresume
+try
+  toggle = chans;
+  info.chansel(toggle) = ~info.chansel(toggle);
+catch
+  update_log(info.output_box, sprintf('ERROR: Channel value too large!'));
+  uiresume;
+  return
+end
+% recalculate the metric
+compute_metric(h)
+guidata(h, info);
+uiresume;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % SUBFUNCTION
@@ -445,9 +462,9 @@ set(findobj('tag', 'edit_toggle_channels'), 'string', excludechantxt)
 % SUBFUNCTION
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 function toggle_visual(h, eventdata)
-% copied from FT_SELECT_BOX, but without the waitforbuttonpress command since here it is triggered by the ButtonDown event
+% copied from FT_SELECT_BOX, but without the waitforbuttonpress command since here it  is triggered by the ButtonDown event
 point1 = get(gca, 'CurrentPoint');    % button down detected
-rbbox;                                % this draws the rubber-band box
+finalRect = rbbox;                    % return figure units
 point2 = get(gca, 'CurrentPoint');    % button up detected
 point1 = point1(1, 1:2);              % extract x and y
 point2 = point2(1, 1:2);
@@ -462,7 +479,7 @@ info  = guidata(g);
 switch gca
   case info.axes(1)
     % visual selection in the summary plot is not supported
-
+    
   case info.axes(2)
     % the visual selection was made in the channels plot
     switch info.cfg.viewmode
@@ -474,7 +491,7 @@ switch gca
           maxperchan_all(chanlabels)' >= x(1) & ...
           maxperchan_all(chanlabels)' <= x(2);
         info.chansel(toggle) = ~info.chansel(toggle);
-
+        
       case 'remove'
         chanlabels     = 1:info.nchan;
         toggle = ...
@@ -483,7 +500,7 @@ switch gca
           maxperchan(chanlabels)' >= x(1) & ...
           maxperchan(chanlabels)' <= x(2);
         info.chansel(toggle) = false;
-
+        
       case 'hide'
         chanlabels = 1:sum(info.chansel==1);
         [junk, origchanlabels] = find(info.chansel==1);
@@ -494,7 +511,7 @@ switch gca
           maxperchan(origchanlabels)' <= x(2);
         info.chansel(origchanlabels(toggle)) = false;
     end
-
+    
   case info.axes(3)
     % the visual selection was made in the trials plot
     switch info.cfg.viewmode
@@ -506,7 +523,7 @@ switch gca
           maxpertrl_all(trllabels) >= y(1) & ...
           maxpertrl_all(trllabels) <= y(2);
         info.trlsel(toggle) = ~info.trlsel(toggle);
-
+        
       case 'remove'
         trllabels = 1:info.ntrl;
         toggle = ...
@@ -515,7 +532,7 @@ switch gca
           maxpertrl(trllabels) >= y(1) & ...
           maxpertrl(trllabels) <= y(2);
         info.trlsel(toggle) = false;
-
+        
       case 'hide'
         trllabels = 1:sum(info.trlsel==1);
         [junk, origtrllabels] = find(info.trlsel==1);
@@ -526,14 +543,14 @@ switch gca
           maxpertrl(origtrllabels) <= y(2);
         info.trlsel(origtrllabels(toggle)) = false;
     end
-
-
+    
+    
 end % switch gca
 
 % recalculate the metric
 compute_metric(h);
 guidata(h, info);
-uiresume
+uiresume;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % SUBFUNCTION
@@ -542,7 +559,7 @@ function quit(h, eventdata)
 info = guidata(h);
 info.quit = 1;
 guidata(h, info);
-uiresume
+uiresume;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % SUBFUNCTION
@@ -553,7 +570,21 @@ info = guidata(h);
 info.metric = h.String{h.Value};
 guidata(h, info);
 compute_metric(h);
-uiresume
+uiresume;
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% SUBFUNCTION
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+function toggle_rejected(h, eventdata)
+info = guidata(h);
+toggle = get(h, 'value');
+if toggle == 0
+  info.cfg.viewmode = 'remove';
+else
+  info.cfg.viewmode = 'toggle';
+end
+guidata(h, info);
+uiresume;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % SUBFUNCTION
@@ -569,7 +600,7 @@ else
   curr_text   = [curr_text repmat(blanks(size_new_text-size_curr_text), size(curr_text, 1), 1)];
 end
 set(h, 'String', [new_text; curr_text]);
-drawnow
+drawnow;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % SUBFUNCTION
@@ -594,35 +625,25 @@ maxpertrl  = extreme(level, [], 1);
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % SUBFUNCTION
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function plot_trials(h, eventdata)
+function display_trial(h, eventdata)
 info = guidata(h);
-
-% process input from the "plot trials" textbox
-text = get(h, 'string');
+update_log(info.output_box, 'Making multiplot of individual trials ...');
+rawtrls = get(h, 'string');
 set(h, 'string', '');
-trls = handle_edit_input(text);
-
-if isempty(trls)
-  update_log(info.output_box, sprintf('Please enter one or more trials'));
-  uiresume
-  return
-elseif any(trls<1)
-  update_log(info.output_box, sprintf('ERROR: Trial value too small!'));
-  uiresume
-  return
-elseif any(trls>length(info.trlsel))
-  update_log(info.output_box, sprintf('ERROR: Trial value too large!'));
-  uiresume
-  return
+if isempty(rawtrls)
+  return;
 else
-  update_log(info.output_box, 'Making multiplot of individual trials ...');
+  spltrls = regexp(rawtrls, '\s+', 'split');
+  trls = [];
+  for n = 1:length(spltrls)
+    trls(n) = str2num(cell2mat(spltrls(n)));
+  end
 end
-
 cfg_mp = [];
 % disable hashing of input data (speeds up things)
 cfg_mp.trackcallinfo = 'no';
-cfg_mp.layout   = info.cfg.layout;
-cfg_mp.channel  = info.data.label(info.chansel);
+cfg_mp.layout  = info.cfg.layout;
+cfg_mp.channel = info.data.label(info.chansel);
 cfg_mp.dataname = info.cfg.dataname;
 cfg_mp.ylim     = info.cfg.ylim;
 currfig = gcf;
@@ -632,7 +653,7 @@ for n = 1:length(trls)
   cfg_sd = [];
   cfg_sd.trials = trls(n);
   tmpdata = ft_selectdata(cfg_sd, info.data);
-
+  
   figure()
   cfg_mp.interactive = 'yes';
   ft_multiplotER(cfg_mp, tmpdata);

@@ -10,8 +10,8 @@ function [cfg] = ft_singleplotER(cfg, varargin)
 %   ft_singleplotER(cfg, data1, data2, ..., datan)
 %
 % The data can be an erp/erf produced by FT_TIMELOCKANALYSIS, a power
-% spectrum or time-frequency respresentation produced by FT_FREQANALYSIS or 
-% a connectivity spectrum produced by FT_CONNECTIVITYANALYSIS.
+% spectrum produced by FT_FREQANALYSIS or connectivity spectrum produced by
+% FT_CONNECTIVITYANALYSIS.
 %
 % The configuration can have the following parameters:
 %   cfg.parameter     = field to be plotted on y-axis, for example 'avg', 'powspctrm' or 'cohspctrm' (default is automatic)
@@ -26,8 +26,7 @@ function [cfg] = ft_singleplotER(cfg, varargin)
 %   cfg.showlegend    = 'yes' or 'no', show the legend with the colors (default = 'no')
 %   cfg.refchannel    = name of reference channel for visualising connectivity, can be 'gui'
 %   cfg.baseline      = 'yes', 'no' or [time1 time2] (default = 'no'), see ft_timelockbaseline
-%   cfg.baselinetype  = 'absolute', 'relative', 'relchange', 'normchange', 'db', 'vssum' or 'zscore' (default = 'absolute'), only relevant for TFR data.
-%                       See ft_freqbaseline.
+%   cfg.baselinetype  = 'absolute' or 'relative' (default = 'absolute')
 %   cfg.trials        = 'all' or a selection given as a 1xn vector (default = 'all')
 %   cfg.fontsize      = font size of title (default = 8)
 %   cfg.hotkeys       = enables hotkeys (leftarrow/rightarrow/uparrow/downarrow/m) for dynamic zoom and translation (ctrl+) of the axes
@@ -35,9 +34,7 @@ function [cfg] = ft_singleplotER(cfg, varargin)
 %                       in a interactive plot you can select areas and produce a new
 %                       interactive plot when a selected area is clicked. multiple areas
 %                       can be selected by holding down the shift key.
-%   cfg.figure        = 'yes' or 'no', whether to open a new figure. You can also specify a figure handle from FIGURE, GCF or SUBPLOT. (default = 'yes')
-%   cfg.position      = location and size of the figure, specified as [left bottom width height] (default is automatic)
-%   cfg.renderer      = string, 'opengl', 'zbuffer', 'painters', see RENDERERINFO (default is automatic, try 'painters' when it crashes)
+%   cfg.renderer      = 'painters', 'zbuffer', ' opengl' or 'none' (default = [])
 %   cfg.linestyle     = linestyle/marker type, see options of the PLOT function (default = '-')
 %                       can be a single style for all datasets, or a cell-array containing one style for each dataset
 %   cfg.linewidth     = linewidth in points (default = 0.5)
@@ -53,7 +50,7 @@ function [cfg] = ft_singleplotER(cfg, varargin)
 %                       pre-selection of the data that is considered for
 %                       plotting.
 %   cfg.showlocations = 'no' (default), or 'yes'. plot a small spatial layout of all sensors, highlighting the specified subset
-%   cfg.layouttopo    = filename, or struct (see FT_PREPARE_LAYOUT) used for showing the locations with cfg.showlocations = 'yes'
+%   cfg.layouttopo    = filename, or struct (see FT_PREPARE_LAYOUT) used for showing the locations with cfg.showlocations = 'yes' 
 %
 % The following options for the scaling of the EEG, EOG, ECG, EMG, MEG and NIRS channels
 % is optional and can be used to bring the absolute numbers of the different
@@ -140,6 +137,7 @@ ft_preamble init
 ft_preamble debug
 ft_preamble loadvar varargin
 ft_preamble provenance varargin
+ft_preamble trackconfig
 
 % the ft_abort variable is set to true or false in ft_preamble_init
 if ft_abort
@@ -174,7 +172,7 @@ cfg.xlim            = ft_getopt(cfg, 'xlim',          'maxmin');
 cfg.ylim            = ft_getopt(cfg, 'ylim',          'maxmin');
 cfg.zlim            = ft_getopt(cfg, 'zlim',          'maxmin');
 cfg.comment         = ft_getopt(cfg, 'comment',        strcat([date '\n']));
-cfg.axes            = ft_getopt(cfg, 'axes',          'yes');
+cfg.axes            = ft_getopt(cfg, ' axes',         'yes');
 cfg.fontsize        = ft_getopt(cfg, 'fontsize',       8);
 cfg.interpreter     = ft_getopt(cfg, 'interpreter',   'none');  % none, tex or latex
 cfg.hotkeys         = ft_getopt(cfg, 'hotkeys',       'yes');
@@ -295,7 +293,7 @@ end
 
 
 % channels should NOT be selected and averaged here, since a topoplot might follow in interactive mode
-tmpcfg = keepfields(cfg, {'trials', 'select', 'showcallinfo', 'trackcallinfo', 'trackusage', 'trackdatainfo', 'trackmeminfo', 'tracktimeinfo', 'checksize'});
+tmpcfg = keepfields(cfg, {'trials', 'select', 'showcallinfo', 'trackcallinfo', 'trackconfig', 'trackusage', 'trackdatainfo', 'trackmeminfo', 'tracktimeinfo'});
 if hasrpt
   tmpcfg.avgoverrpt = 'yes';
 else
@@ -310,8 +308,10 @@ else
 end
 tmpvar = varargin{1};
 [varargin{:}] = ft_selectdata(tmpcfg, varargin{:});
-% restore the provenance information, don't keep the ft_selectdata details
-[tmpcfg, varargin{:}] = rollback_provenance(cfg, varargin{:});
+% restore the provenance information and put back cfg.channel
+tmpchannel  = cfg.channel;
+[cfg, varargin{:}] = rollback_provenance(cfg, varargin{:});
+cfg.channel = tmpchannel;
 
 if isfield(tmpvar, cfg.maskparameter) && ~isfield(varargin{1}, cfg.maskparameter)
   % the mask parameter is not present after ft_selectdata, because it is
@@ -374,7 +374,7 @@ end
 
 if istrue(cfg.showlocations)
   % Read or create the layout that will be used for plotting, if specified
-  tmpcfg = keepfields(cfg, {'rows', 'columns', 'commentpos', 'scalepos', 'projection', 'viewpoint', 'rotate', 'width', 'height', 'elec', 'grad', 'opto', 'layouttopo', 'showcallinfo', 'trackcallinfo', 'trackusage', 'trackdatainfo', 'trackmeminfo', 'tracktimeinfo', 'checksize'});
+  tmpcfg = keepfields(cfg, {'rows', 'columns', 'commentpos', 'scalepos', 'projection', 'viewpoint', 'rotate', 'width', 'height', 'elec', 'grad', 'opto', 'layouttopo', 'showcallinfo', 'trackcallinfo', 'trackconfig', 'trackusage', 'trackdatainfo', 'trackmeminfo', 'tracktimeinfo'});
   tmpcfg.skipcomnt = 'yes';
   tmpcfg.skipscale = 'yes';
   tmpcfg.pointcolor = cfg.linecolor; % switch of name for ft_prepare_layout
@@ -592,6 +592,7 @@ end
 
 % do the general cleanup and bookkeeping at the end of the function
 ft_postamble debug
+ft_postamble trackconfig
 ft_postamble previous varargin
 ft_postamble provenance
 ft_postamble savefig
@@ -617,13 +618,12 @@ cfg      = info.(ident).cfg;
 varargin = info.(ident).varargin;
 if ~isempty(range)
   cfg = removefields(cfg, 'inputfile');   % the reading has already been done and varargin contains the data
-  cfg = removefields(cfg, 'showlabels');  % this is not allowed in ft_topoplotER
-  cfg = removefields(cfg, {'latency', 'frequency'});  % this should be xlim in ft_topoplotER
+  cfg = removefields(cfg, 'showlabels');  % this is not allowed in topoplotER
   cfg.baseline = 'no';                    % make sure the next function does not apply a baseline correction again
   cfg.dataname = info.(ident).dataname;   % put data name in here, this cannot be resolved by other means
   cfg.channel = 'all';                    % make sure the topo displays all channels, not just the ones in this singleplot
-  cfg.trials = 'all';                     % trial selection has already been taken care of
   cfg.comment = 'auto';
+  cfg.trials = 'all';                     % trial selection has already been taken care of
   cfg.xlim = range(1:2);
   % if user specified a ylim, copy it over to the zlim of topoplot
   if isfield(cfg, 'ylim')

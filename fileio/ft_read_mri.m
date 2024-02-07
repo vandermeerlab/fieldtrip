@@ -13,14 +13,12 @@ function [mri] = ft_read_mri(filename, varargin)
 %                   it is determined automatically from the filename.
 %   'volumes'     = vector with the volume indices to read from a 4D nifti (only for 'nifti_spm')
 %   'outputfield' = string specifying the name of the field in the structure in which the
-%                   numeric data is stored (default = 'anatomy')
+%                   numeric data is stored (only for 'mrtrix_mif', default = 'anatomy')
 %   'fixel2voxel' = string, the operation to apply to the fixels belonging to the
-%                   same voxel, can be 'max', 'min', 'mean' (only for 'mrtrix_mif', default = 'max')
+%                  same voxel, can be 'max', 'min', 'mean' (only for 'mrtrix_mif', default = 'max')
 %   'indexfile'   = string, pointing to a fixel index file, if not present in the same directory
 %                   as the functional data (only for 'mrtrix_mif')
 %   'spmversion'  = string, version of SPM to be used (default = 'spm12')
-%   'readbids'    = string, 'yes', no', or 'ifmakessense', whether to read information from
-%                   the BIDS sidecar files (default = 'ifmakessense')
 %
 % The supported dataformats are
 %   'afni_head'/'afni_brik'      uses AFNI code
@@ -30,9 +28,7 @@ function [mri] = ft_read_mri(filename, varargin)
 %   'ctf_mri'
 %   'ctf_mri4'
 %   'ctf_svl'
-%   'dicom'                      uses SPM code, same as dicom_spm
-%   'dicom_spm'                  uses SPM code, also allows for multiframe dicoms (one volume in a file)     
-%   'dicom_fs'                   uses FreeSurfer code, which relies on MATLAB image processing toolbox
+%   'dicom'                      uses FreeSurfer code
 %   'dicom_old'                  uses MATLAB image processing toolbox code
 %   'freesurfer_mgh'             uses FreeSurfer code
 %   'freesurfer_mgz'             uses FreeSurfer code
@@ -41,26 +37,24 @@ function [mri] = ft_read_mri(filename, varargin)
 %   'matlab'                     assumes a MATLAB *.mat file containing a struct
 %   'minc'                       uses SPM, this requires SPM5 or older
 %   'mrtrix_mif'                 uses mrtrix code
-%   'neuromag_fif'               uses MNE toolbox code
+%   'neuromag_fif'               uses MNE toolbox
 %   'neuromag_fif_old'           uses meg-pd toolbox
 %   'nifti'                      uses FreeSurfer code
-%   'nifti_spm'                  uses SPM code
-%   'seg3d_mat'                  MATLAB file from Seg3D with a scirunnrrd structure
+%   'nifti_spm'                  uses SPM
 %   'yokogawa_mri'
 %
 % The following MRI file formats are supported
-%   AFNI (*.head, *.brik)
-%   ANT - Advanced Neuro Technology (*.mri)
-%   Analyze (*.img, *.hdr)
 %   CTF (*.svl, *.mri version 4 and 5)
-%   DICOM (*.dcm, *.ima)
-%   FreeSurfer (*.mgz, *.mgh)
-%   MATLAB (*.mat)
-%   MINC (*.mnc)
-%   Mrtrix image format (*.mif)
 %   NIFTi (*.nii) and zipped NIFTi (*.nii.gz)
+%   Analyze (*.img, *.hdr)
+%   DICOM (*.dcm, *.ima)
+%   AFNI (*.head, *.brik)
+%   FreeSurfer (*.mgz, *.mgh)
+%   MINC (*.mnc)
 %   Neuromag/Elekta/Megin (*.fif)
+%   ANT - Advanced Neuro Technology (*.mri)
 %   Yokogawa (*.mrk, incomplete)
+%   Mrtrix image format (*.mif)
 %
 % If you have a series of DICOM files, please provide the name of any of the files in
 % the series (e.g. the first one). The files corresponding to the whole volume will
@@ -70,14 +64,14 @@ function [mri] = ft_read_mri(filename, varargin)
 % coordinates of each voxel (in xgrid/ygrid/zgrid) into head coordinates.
 %
 % If the input file is a 4D nifti, and you wish to load in just a subset of the
-% volumes, for example due to memory constraints, you should use as dataformat 'nifti_spm',
+% volumes (e.g. due to memory constraints), you should use as dataformat 'nifti_spm',
 % which uses the optional key-value pair 'volumes' = vector, with the indices of the
-% to-be-read volumes. The order of the indices is ignored, and the volumes will be
-% sorted according to the original numeric indices, i.e., 1:10 yields the same as 10:-1:1
+% to-be-read volumes, the order of the indices is ignored, and the volumes will be
+% sorted according to the numeric indices, i.e. [1:10] yields the same as [10:-1:1]
 %
 % See also FT_DATATYPE_VOLUME, FT_WRITE_MRI, FT_READ_DATA, FT_READ_HEADER, FT_READ_EVENT
 
-% Copyright (C) 2008-2023, Robert Oostenveld & Jan-Mathijs Schoffelen
+% Copyright (C) 2008-2022, Robert Oostenveld & Jan-Mathijs Schoffelen
 %
 % This file is part of FieldTrip, see http://www.fieldtriptoolbox.org
 % for the documentation and details.
@@ -104,7 +98,6 @@ filename = fetch_url(filename);
 dataformat  = ft_getopt(varargin, 'dataformat');
 outputfield = ft_getopt(varargin, 'outputfield', 'anatomy');
 spmversion  = ft_getopt(varargin, 'spmversion');
-readbids    = ft_getopt(varargin, 'readbids', 'ifmakessense');
 
 % use the version that is on the path, or default to spm12
 if ~ft_hastoolbox('spm') && isempty(spmversion)
@@ -120,46 +113,16 @@ if ~isempty(format)
   end
 end
 
-% for backward compatibility with https://github.com/fieldtrip/fieldtrip/issues/1585
-if islogical(readbids)
-  % it should be either yes/no/ifmakessense
-  if readbids
-    readbids = 'yes';
-  else
-    readbids = 'no';
-  end
-end
-
-% test whether the file exists
-if ~exist(filename, 'file')
-  ft_error('file ''%s'' does not exist', filename);
-end
-
 if isempty(dataformat)
   % only do the autodetection if the format was not specified
   dataformat = ft_filetype(filename);
-end
-
-% deal with data that is organized according to BIDS
-% this has to happen prior to the unzipping of the file
-if strcmp(readbids, 'yes') || strcmp(readbids, 'ifmakessense')
-  [p, f, x] = fileparts(filename);
-  % check whether it is a BIDS dataset with a json sidecar file
-  isbids = startsWith(f, 'sub-');
-  if isbids
-    % try to read the metadata from the BIDS sidecar files
-    sidecar = bids_sidecar(filename);
-    if ~isempty(sidecar)
-      mri_json = ft_read_json(sidecar);
-    end
-  end
 end
 
 if strcmp(dataformat, 'compressed') || (strcmp(dataformat, 'freesurfer_mgz') && ispc) || any(filetype_check_extension(filename, {'gz', 'zip', 'tar', 'tgz'}))
   % the file is compressed, unzip on the fly,
   % -freesurfer mgz files get special treatment only on a pc
   % -compressed AFNI BRIKS also need the HEAD copied over to the temp dir
-
+  
   filename_old = filename;
   filename    = inflate_file(filename_old);
   if strcmp(dataformat, 'freesurfer_mgz')
@@ -181,6 +144,11 @@ else
   inflated = false;
 end
 
+% test whether the file exists
+if ~exist(filename, 'file')
+  ft_error('file ''%s'' does not exist', filename);
+end
+
 % test for the presence of some external functions from other toolboxes
 hasspm2  = ft_hastoolbox('spm2');    % see http://www.fil.ion.ucl.ac.uk/spm/
 hasspm5  = ft_hastoolbox('spm5');    % see http://www.fil.ion.ucl.ac.uk/spm/
@@ -193,38 +161,10 @@ switch dataformat
     transform = hdr.transformMRI2Head;
     coordsys  = 'ctf';
 
-    if issubfield(hdr, 'fiducial.head')
-      fid.label = fieldnames(hdr.fiducial.head);
-      for i=1:length(fid.label)
-        fid.pos(i,:) = hdr.fiducial.head.(fid.label{i});
-      end
-    elseif issubfield(hdr, 'fiducial.mri')
-      fid.label = fieldnames(hdr.fiducial.mri);
-      for i=1:length(fid.label)
-        fid.pos(i,:) = hdr.fiducial.mri.(fid.label{i});
-      end
-      % convert from voxel to headcoordinates
-      fid.pos = ft_warp_apply(transform, fid.pos);
-    end
-
   case 'ctf_mri4'
     [img, hdr] = read_ctf_mri4(filename);
     transform = hdr.transformMRI2Head;
     coordsys  = 'ctf';
-
-    if issubfield(hdr, 'fiducial.head')
-      fid.label = fieldnames(hdr.fiducial.head);
-      for i=1:length(fid.label)
-        fid.pos(i,:) = hdr.fiducial.head.(fid.label{i});
-      end
-    elseif issubfield(hdr, 'fiducial.mri')
-      fid.label = fieldnames(hdr.fiducial.mri);
-      for i=1:length(fid.label)
-        fid.pos(i,:) = hdr.fiducial.mri.(fid.label{i});
-      end
-      % convert from voxel to headcoordinates
-      fid.pos = ft_warp_apply(transform, fid.pos);
-    end
 
   case 'ctf_svl'
     [img, hdr] = read_ctf_svl(filename);
@@ -234,7 +174,7 @@ switch dataformat
     [img, seg, hdr] = read_asa_mri(filename);
     transform = hdr.transformMRI2Head;
     if isempty(seg)
-      % in case seg exists, it will be added to the output
+      % in case seg exists it will be added to the output
       clear seg
     end
 
@@ -250,7 +190,7 @@ switch dataformat
 
   case 'nifti_spm'
     if ~(hasspm5 || hasspm8 || hasspm12)
-      fprintf('the SPM5 or later toolbox is required to read *.nii files\n');
+      fprintf('the SPM5 or newer toolbox is required to read *.nii files\n');
       ft_hastoolbox(spmversion, 1);
     end
     volumes = ft_getopt(varargin, 'volumes', []);
@@ -328,8 +268,8 @@ switch dataformat
     ft_hastoolbox('afni', 1);    % see http://afni.nimh.nih.gov/
 
     [err, hdr] = BrikInfo(filename);
-
-    % check the precision of the data, and if scaling is required. If the precision is other than float,
+    
+    % check the precision of the data, and if scaling is required. If the precision is other than float, 
     %and no scaling is required, then return the data in its native precision, let the low level code take
     % care of that
     if any(hdr.BRICK_FLOAT_FACS~=0)
@@ -352,10 +292,10 @@ switch dataformat
       % afni volume info
       orient = 'LPI'; % hope for the best
     end
-
+        
     % origin and basis vectors in world space
     [unused, ix] = AFNI_Index2XYZcontinuous([0 0 0; eye(3)], hdr, orient);
-
+    
     % basis vectors in voxel space
     e1 = ix(2,:) - ix(1,:);
     e2 = ix(3,:) - ix(1,:);
@@ -367,7 +307,7 @@ switch dataformat
     % create matrix
     transform = [e1;e2;e3;o]';
     transform = cat(1, transform, [0 0 0 1]);
-
+    
     coordsys = lower(hdr.Orientation(:,2)');
     if contains(filename, 'TTatlas') || (isfield(hdr, 'TEMPLATE_SPACE') && ~isempty(hdr.TEMPLATE_SPACE))
       if isfield(hdr, 'TEMPLATE_SPACE') && ~isempty(hdr.TEMPLATE_SPACE)
@@ -463,45 +403,7 @@ switch dataformat
     hdr.coords = coords;
     hdr.dev    = dev;
 
-  case {'dicom' 'dicom_spm'}
-    % requires spm12
-    ft_hastoolbox('spm12', 1);
-    dicomhdr = spm_dicom_headers(filename); % read the header for a single file
-    if isfield(dicomhdr{1}, 'SharedFunctionalGroupSequence')
-      % this seems to be a multiframe image, we don't need to read in the separate headers for each of the slices
-    else
-      % this is a 'traditional' image, one file per slice
-      [f, p, e] = fileparts(filename);
-      d         = dir(fullfile(f,sprintf('*%s',e)));
-      filenames = {d.name};
-      for k = 1:numel(filenames)
-        filenames{k} = fullfile(f, filenames{k});
-      end
-      hdr1 = spm_dicom_headers(filename);  % read the header for the predefined slice
-      hdrs = spm_dicom_headers(filenames); % read the headers for all slices in the folder 
-      for k = 1:numel(hdrs)
-        seriesnumber(k,1) = hdrs{k}.SeriesNumber;
-      end
-      sel      = seriesnumber==hdr1{1}.SeriesNumber;
-      dicomhdr = hdrs(sel);
-    end
-    tdir  = tempdir;
-    fname = spm_dicom_convert(dicomhdr, 'all', 'flat', 'nii', tdir, 1);
-    
-    % convert  the cell(-array) dicomhdr as generated by SPM into a
-    % struct(-array)
-    for k = 1:numel(dicomhdr)
-      dicomhdr_struct(k) = dicomhdr{k};
-    end
-    clear dicomhdr;
-    
-    mri   = ft_read_mri(fname.files{1});
-    mri.coordsys = 'scanras';
-    mri.unit     = 'mm';
-    mri.hdr      = dicomhdr_struct;
-    delete(fname.files{1});
-    
-  case 'dicom_fs'
+  case 'dicom'
     % this returns a right-handed volume with the transformation matrix stored in the file headers
     % see https://github.com/fieldtrip/website/pull/444
 
@@ -651,19 +553,6 @@ switch dataformat
 
     ft_error('FIXME yokogawa_mri implementation is incomplete');
 
-  case 'seg3d_mat'
-    scirunnrrd = loadvar(filename, 'scirunnrrd');
-    mri.anatomy = scirunnrrd.data;
-    mri.dim = [scirunnrrd.axis.size];
-    % construct the homogenous transformation matrix
-    mri.transform = eye(4);
-    mri.transform(1,1) = scirunnrrd.axis(1).spacing;
-    mri.transform(2,2) = scirunnrrd.axis(2).spacing;
-    mri.transform(3,3) = scirunnrrd.axis(3).spacing;
-    mri.transform(1,4) = scirunnrrd.axis(1).min - scirunnrrd.axis(1).spacing;
-    mri.transform(2,4) = scirunnrrd.axis(2).min - scirunnrrd.axis(2).spacing;
-    mri.transform(3,4) = scirunnrrd.axis(3).min - scirunnrrd.axis(3).spacing;
-
   case 'matlab'
     mri = loadvar(filename, 'mri');
 
@@ -731,7 +620,7 @@ switch dataformat
       mri.transform(1:3,1:3) = diag(tmp.vox(1:3))*mri.transform(1:3,1:3);
     end
 
-  case {'neurojson_jnii' 'neurojson_bnii'}
+  case {'openjdata_jnii' 'openjdata_bnii'}
     % this depends on two external toolboxes
     ft_hastoolbox('jsonlab', 1);
     ft_hastoolbox('jnifti', 1);
@@ -739,7 +628,7 @@ switch dataformat
     jnii = loadjnifti(filename);
 
     mri.hdr     = jnii.NIFTIHeader;
-    mri.(outputfield) = jnii.NIFTIData;
+    mri.anatomy = jnii.NIFTIData;
     mri.dim     = jnii.NIFTIHeader.Dim;
     mri.unit    = jnii.NIFTIHeader.Unit.L; % units of length
 
@@ -804,17 +693,14 @@ switch dataformat
     end
 
     % ensure that this is double precision and not uint8
-    mri.transform = double(mri.transform);
-
-    % ensure that this is double precision and not uint8
-    mri.dim = double(mri.dim);
+     mri.transform = double(mri.transform);
 
     % these are already part of the output structure and should not be reassigned
     clear coordsys transform unit
 
   otherwise
     ft_error('unrecognized filetype ''%s'' for ''%s''', dataformat, filename);
-end % switch dataformat
+end
 
 if exist('img', 'var')
   % determine the size of the volume in voxels
@@ -860,32 +746,6 @@ if exist('xxx2ras', 'var') && xxx2ras==true
   % be ras, in order for the tal/mni coordsys to make sense
   mri = ft_convert_coordsys(mri, 'ras', 0);
   mri.coordsys = space;
-end
-
-if (strcmp(readbids, 'yes') || strcmp(readbids, 'ifmakessense')) && isbids
-  % the BIDS sidecar files extend/overrule the information that is present in the file header itself
-  if exist('mri_json', 'var')
-    fid =[];
-    if isfield(mri_json, 'AnatomicalLandmarkCoordinates')
-      fid.label = fieldnames(mri_json.AnatomicalLandmarkCoordinates);
-      for i=1:length(fid.label)
-        fid.pos(i,:) = mri_json.AnatomicalLandmarkCoordinates.(fid.label{i});
-      end
-      if isfield(mri_json, 'AnatomicalLandmarkCoordinateSystem') && isfield(mri_json, 'AnatomicalLandmarkCoordinateUnits')
-        fid.coordsys = mri_json.AnatomicalLandmarkCoordinateSystem;
-        fid.unit     = mri_json.AnatomicalLandmarkCoordinateUnits;
-      else
-        % assume that it is according to https://bids-specification.readthedocs.io/en/stable/glossary.html#anatomicallandmarkcoordinates-sense-2-metadata
-        fid.pos = fid.pos+1;                             % convert from 0 to 1 offset
-        fid.pos = ft_warp_apply(mri.transform, fid.pos); % convert from voxel to head coordinates
-      end
-    end % if fiducials present
-  end % if mri_json
-end % if readbids
-
-if exist('fid', 'var') && ~isempty(fid)
-  % store the fiducial details
-  mri.fid = fid;
 end
 
 if inflated

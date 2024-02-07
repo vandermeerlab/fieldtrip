@@ -81,6 +81,7 @@ ft_preamble init
 ft_preamble debug
 ft_preamble loadvar datain
 ft_preamble provenance datain
+ft_preamble trackconfig
 
 % the ft_abort variable is set to true or false in ft_preamble_init
 if ft_abort
@@ -188,9 +189,9 @@ dat = reshape(dat, nrpt, []);
 
 % estimate and remove the confounds
 fprintf('estimating the regression weights and removing the confounds \n');
-if isempty(find(isnan(dat))) % if there are no NaNs, process all at once
-  beta = regr\dat;                                                        % B = X\Y
-else % otherwise process per colum set as defined by the nan distribution
+if isempty(find(isnan(dat))) % if there are no NaNs, process all at once 
+  beta = regr\dat;                                                        % B = X\Y 
+else % otherwise process per colum set as defined by the nan distribution  
   [u,i,j] = unique(~isnan(dat)','rows','first'); % find unique rows
   uniquecolumns = u'; % unique column types
   Nuniques = numel(i); % number of unique types
@@ -210,11 +211,11 @@ model = regr(:, cfg.reject) * beta(cfg.reject, :);                        % mode
 Yc = dat - model;                                                         % Yclean = Y - X * X\Y
 
 % reduced models analyses
-if ~isempty(cfg.ftest)
+if ~isempty(cfg.ftest)  
   dfe        = nrpt - nconf;                                              % degrees of freedom
   err        = dat - regr * beta;                                         % err = Y - X * B
   tmse       = sum((err).^2)/dfe;                                         % mean squared error
-  for iter = 1:numel(cfg.ftest)
+  for iter = 1:numel(cfg.ftest)    
     % regressors to test if they explain additional variance
     r          = str2num(cfg.ftest{iter});
     fprintf('F-testing explained additional variance of regressors %s \n', num2str(r));
@@ -240,7 +241,7 @@ if ~isempty(cfg.ftest)
     p(iter,idx_pos) = (1-fcdf(F(iter,idx_pos),rnr,rdfe));
     p(iter,idx_neg) = fcdf(-F(iter,idx_neg),rnr,rdfe);
     clear rerr rmse
-    % FIXME: drop in replace tcdf from the statfun/private dir
+    % FIXME: drop in replace tcdf from the statfun/private dir   
   end
   clear dfe err tmse
 end
@@ -253,7 +254,7 @@ switch cfg.output
     if haspermuted
       dataout.(cfg.parameter) = ipermute(dataout.(cfg.parameter), [rptdim datdim]);
     end
-    clear Yc
+    clear Yc   
   case 'beta'
     dataout.beta = reshape(beta, [nconf, dimsiz(datdim)]);
     if haspermuted
@@ -267,8 +268,9 @@ switch cfg.output
       covar      = diag(regr'*regr)';                                         % regressor covariance
       bvar       = repmat(mse',1,size(covar,2))./repmat(covar,size(mse,2),1); % beta variance
       tval       = (beta'./sqrt(bvar))';                                      % betas -> t-values
-      prob       = 2*(tcdf(-abs(tval),dfe));                                  % t-values -> p-values
+      prob       = (1-tcdf(tval,dfe))*2;                                      % p-values
       clear err dfe mse bvar
+      % FIXME: drop in replace tcdf from the statfun/private dir
       dataout.stat = reshape(tval, [nconf dimsiz(datdim)]);
       dataout.prob = reshape(prob, [nconf dimsiz(datdim)]);
       if haspermuted
@@ -276,7 +278,7 @@ switch cfg.output
         dataout.prob = ipermute(dataout.prob, [rptdim datdim]);
       end
       clear tval prob
-    end
+    end    
   case 'model'
     dataout.model = keepfields(datain, {'label', 'time', 'freq', 'pos', 'dim', 'transform', 'inside', 'outside', 'trialinfo', 'sampleinfo', 'dimord'});
     dataout.model.(cfg.parameter) = reshape(model, [nrpt, dimsiz(datdim)]);
@@ -284,7 +286,7 @@ switch cfg.output
       dataout.model.(cfg.parameter) = ipermute(dataout.model.(cfg.parameter), [rptdim datdim]);
     end
   otherwise
-    error('output ''%s'' is not supported', cfg.output);
+    error('output ''%s'' is not supported', cfg.output);    
 end
 
 % reduced models analyses
@@ -308,6 +310,7 @@ end
 
 % do the general cleanup and bookkeeping at the end of the function
 ft_postamble debug
+ft_postamble trackconfig
 ft_postamble previous datain
 
 % rename the output variable to accomodate the savevar postamble

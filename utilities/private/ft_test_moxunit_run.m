@@ -1,9 +1,6 @@
 function passed = ft_test_moxunit_run(unused,varargin)
 
-% FT_TEST_MOXUNIT_RUN documentation is included inside ft_test
-% documentation.
-% 
-% See also FT_TEST
+% FT_TEST_MOXUNIT_RUN
 
 % Copyright (C) 2017, Nikolaas N. Oosterhof
 %

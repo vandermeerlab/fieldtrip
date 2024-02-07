@@ -52,7 +52,7 @@ if nargin < 4
   emptymeaningful = false;
 end
 
-if isa(opt, 'struct')
+if isa(opt, 'struct') || isa(opt, 'config')
   % get the key-value from the structure
   fn = fieldnames(opt);
   if ~any(strcmp(key, fn))

@@ -47,8 +47,7 @@ function [output] = ft_warp_apply(M, input, method, tol)
 % 'scale', 'rigidbody', 'globalrescale', 'traditional', 'affine', 'perspective',
 % 'quaternion'.
 %
-% See also FT_AFFINECOORDINATES, FT_HEADCOORDINATES, FT_WARP_OPTIM, FT_WARP_ERROR, 
-% MAKETFORM, AFFINE2D, AFFINE3D
+% See also FT_AFFINECOORDINATES, FT_HEADCOORDINATES, FT_WARP_OPTIM, FT_WARP_ERROR
 
 % Copyright (C) 2000-2022, Robert Oostenveld
 %
@@ -89,11 +88,6 @@ if size(input,2)==2
   input3d = false;
 else
   input3d = true;
-end
-
-if isequal(size(input), [3 1])
-    % transpose the input
-    input = input';
 end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

@@ -54,6 +54,7 @@ ft_preamble init
 ft_preamble debug
 ft_preamble loadvar    datain
 ft_preamble provenance datain
+ft_preamble trackconfig
 
 % the ft_abort variable is set to true or false in ft_preamble_init
 if ft_abort
@@ -103,7 +104,7 @@ switch dtype_datain
 end
 
 % select channels and trials of interest, by default this will select all channels and trials
-tmpcfg = keepfields(cfg, {'trials', 'channel', 'tolerance', 'showcallinfo', 'trackcallinfo', 'trackusage', 'trackdatainfo', 'trackmeminfo', 'tracktimeinfo', 'checksize'});
+tmpcfg = keepfields(cfg, {'trials', 'channel', 'tolerance', 'showcallinfo', 'trackcallinfo', 'trackconfig', 'trackusage', 'trackdatainfo', 'trackmeminfo', 'tracktimeinfo'});
 datain = ft_selectdata(tmpcfg, datain);
 noise  = ft_selectdata(tmpcfg, noise);
 
@@ -199,8 +200,8 @@ if hasopto
   dataout.opto = ft_apply_montage(datain.opto, prewhiten, 'balancename', 'prewhiten');
 end
 
-% do the general cleanup and bookkeeping at the end of the function
 ft_postamble debug
+ft_postamble trackconfig
 ft_postamble previous   datain
 ft_postamble provenance dataout
 ft_postamble history    dataout

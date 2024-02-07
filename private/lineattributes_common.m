@@ -9,17 +9,17 @@ function [linecolor, linestyle, linewidth] = lineattributes_common(cfg, varargin
 % 
 % It is not yet used by
 %   ft_connectivityplot
-%   ft_prepare_layout
 % 
 % Use as
-%   [linecolor, linestyle, linewidth] = lineattributes_common(cfg, varargin)
+% 
+% [linecolor, linestyle, linewidth] = lineattributes_common(cfg, varargin)
 % 
 % The input varargin are the data object(s) which are the input of the caller function.
 % The output consists of:
 % 
-%   linecolor = N x 3 x M matrix with RGB values for N channels and M data arguments
-%   linestyle = N x M     cell-array with linestyle for N channels and M data arguments
-%   linewidth = N x M     matrix with linewidth for N channels and M data arguments  
+%   linecolor = N x 3 x M matrix with rgb-values for N channels and M data arguments
+%   linestyle = N x M cell array with linestyle for N channels and M data arguments
+%   linewidth = N x M matrix with linewidth for N channels and M data arguments  
 % 
 % The configuration can have the following parameters:
 %   cfg.colorgroups = char or numeric vector determining whether the
@@ -35,7 +35,7 @@ function [linecolor, linestyle, linewidth] = lineattributes_common(cfg, varargin
 %   cfg.linewidth   = scalar, or NxM matrix
 %
 % If cfg.linecolor is a char, it should either be a sequence of characters that can be translated into
-% an RGB value (i.e., any of 'rbgcmykw'), or it can be 'spatial', in which case a color will be assigned
+% and rgb value (i.e. any of 'rbgcmykw'), or it can be 'spatial', in which case a color will be assigned
 % based on the layout.color field. Typically, this will be a color that is based on the x/y/z position of 
 % the corresponding sensor.
 
@@ -88,17 +88,10 @@ if isnumeric(cfg.linecolor) && size(cfg.linecolor,2)==3
 elseif ischar(cfg.linecolor) && all(ismember(cfg.linecolor, 'rgbcmykw'))
   % this is handled below
 elseif isequal(cfg.linecolor, 'spatial')
-  % try to get the color specification from the layout
-  if isfield(cfg, 'layout') && ischar(cfg.layout)
-    tmpcfg = keepfields(cfg, {'layout'});
-    tmpcfg.color = 'spatial';
-    tmplayout = ft_prepare_layout(tmpcfg);
-    cfg.linecolor = tmplayout.color;
-  elseif isfield(cfg, 'layout') && isstruct(cfg.layout) && isfield(cfg.layout, 'color')
+  if isfield(cfg, 'layout') && isfield(cfg.layout, 'color')
     cfg.linecolor = cfg.layout.color;
   else
-    ft_warning('the input cfg should contain a layout specification for which the spatial colors can be determined');
-    cfg.linecolor = 'b';
+    ft_error('this does not work yet'); % FIXME in principle the color can be derived from the 3D chanpos if present in the data
   end
 elseif isempty(cfg.linecolor)
   cfg.linecolor = [
@@ -157,7 +150,7 @@ else
     linecolor = repmat(linecolor(1:Nchan,:), [1 1 Ndata]);
     
   elseif strcmp(cfg.colorgroups, 'allblack')
-    % all channels are black, same across conditions
+    
     linecolor = zeros(Nchan, 3, Ndata);
     
   elseif strcmp(cfg.colorgroups, 'chantype')
@@ -173,10 +166,6 @@ else
   elseif startsWith(cfg.colorgroups, 'labelchar')
     % channel groups are defined by the Nth letter of the channel label
     labelchar_num = sscanf(cfg.colorgroups, 'labelchar%d');
-    if isempty(labelchar_num)
-      ft_error('you must specify a number between 0 and 9 for N in labelcharN');
-    end
-
     vec_letters = num2str(zeros(Nchan,1));
     for iChan = 1:Nchan
       vec_letters(iChan) = label{iChan}(labelchar_num);

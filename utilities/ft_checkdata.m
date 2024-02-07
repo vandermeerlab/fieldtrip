@@ -1,7 +1,7 @@
 function [data] = ft_checkdata(data, varargin)
 
 % FT_CHECKDATA checks the input data of the main FieldTrip functions, e.g. whether the
-% type of data structure corresponds with the required data. If necessary and possible,
+% type of data strucure corresponds with the required data. If necessary and possible,
 % this function will adjust the data structure to the input requirements (e.g. change
 % dimord, average over trials, convert inside from index into logical).
 %
@@ -13,23 +13,23 @@ function [data] = ft_checkdata(data, varargin)
 %   [data] = ft_checkdata(data, ...)
 %
 % Optional input arguments should be specified as key-value pairs and can include
-%   feedback           = 'yes' or 'no'
+%   feedback           = yes, no
 %   datatype           = raw, freq, timelock, comp, spike, source, mesh, dip, volume, segmentation, parcellation
 %   dimord             = any combination of time, freq, chan, refchan, rpt, subj, chancmb, rpttap, pos
 %   senstype           = ctf151, ctf275, ctf151_planar, ctf275_planar, neuromag122, neuromag306, bti148, bti248, bti248_planar, magnetometer, electrode
 %   fsample            = sampling frequency to use to go from SPIKE to RAW representation
-%   ismeg              = 'yes' or 'no', requires the data to have a grad structure
-%   iseeg              = 'yes' or 'no', requires the data to have an elec structure
-%   isnirs             = 'yes' or 'no', requires the data to have an opto structure
-%   hasunit            = 'yes' or 'no'
-%   hascoordsys        = 'yes' or 'no'
-%   haschantype        = 'yes' or 'no'
-%   haschanunit        = 'yes' or 'no'
-%   hassampleinfo      = 'yes', 'no', or 'ifmakessense' (applies to raw and timelock data)
-%   hascumtapcnt       = 'yes' or 'no' (only applies to freq data)
-%   hasdim             = 'yes' or 'no'
-%   hasdof             = 'yes' or 'no'
-%   hasbrain           = 'yes' or 'no' (only applies to segmentation)
+%   ismeg              = yes, no
+%   iseeg              = yes, no
+%   isnirs             = yes, no
+%   hasunit            = yes, no
+%   hascoordsys        = yes, no
+%   haschantype        = yes, no
+%   haschanunit        = yes, no
+%   hassampleinfo      = yes, no, ifmakessense (applies to raw and timelock data)
+%   hascumtapcnt       = yes, no (only applies to freq data)
+%   hasdim             = yes, no
+%   hasdof             = yes, no
+%   hasbrain           = yes, no (only applies to segmentation)
 %   insidestyle        = logical, index, can also be empty
 %   cmbstyle           = sparse, sparsewithpow, full, fullfast, fourier (applies to covariance and cross-spectral density)
 %   segmentationstyle  = indexed, probabilistic (only applies to segmentation)
@@ -63,7 +63,7 @@ function [data] = ft_checkdata(data, varargin)
 %
 % $Id$
 
-% in case of an error this function could use dbstack for more detailed
+% in case of an error this function could use dbstack for more detailled
 % user feedback
 %
 % this function should replace/encapsulate
@@ -91,7 +91,7 @@ function [data] = ft_checkdata(data, varargin)
 
 % FIXME the following is difficult, if not impossible, to support without knowing the parameter
 % FIXME it is presently (dec 2014) not being used anywhere in FT, so can be removed
-%   hastrials          = 'yes' or 'no'
+%   hastrials          = yes, no
 
 % check whether people are using deprecated options
 sel = find(strcmp(varargin(1:2:end), 'hastrialdef'));
@@ -214,11 +214,9 @@ if ~isequal(feedback, 'no') % can be 'yes' or 'text'
   elseif isvolume
     if issegmentation
       ft_info('the input is segmented volume data with dimensions [%d %d %d]\n', data.dim(1), data.dim(2), data.dim(3));
-      print_voxelinfo(data)
-      print_segmentationinfo(data)
+      print_segmentedvolumes(data)
     else
       ft_info('the input is volume data with dimensions [%d %d %d]\n', data.dim(1), data.dim(2), data.dim(3));
-      print_voxelinfo(data)
     end
   elseif issource
     data = fixpos(data); % ensure that positions are in pos, not in pnt
@@ -1814,10 +1812,11 @@ end
 spikeTimes(multiSpikes) = [];
 spikeTimes              = sort([spikeTimes(:); addTimes(:)]);
 
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % SUBFUNCTION
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function print_segmentationinfo(segmentation)
+function print_segmentedvolumes(segmentation)
 % give feedback about the volume of tissue compartments
 
 fn = fieldnames(segmentation);
@@ -1886,26 +1885,3 @@ elseif all(probabilistic)
   ft_info('%s : %8.0f %s (%6.2f %%)', pad('total volume',    width), totalvolume, voxelunit, 100*totalvolume/totalvolume);
   
 end % if all inxexed or probabilistic
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% SUBFUNCTION
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-function print_voxelinfo(mri)
-% give feedback about the size and volume of voxels
-
-if isfield(mri, 'transform') && isfield(mri, 'unit')
-  voxelpos = [
-    1 1 1
-    2 1 1 % shifted by one voxel along 1st dimension
-    1 2 1 % shifted by one voxel along 2nd dimension
-    1 1 2 % shifted by one voxel along 3rd dimension
-    ];
-
-  headpos = ft_warp_apply(mri.transform, voxelpos);
-
-  fprintf('voxel size along 1st dimension (i) : %f %s\n', norm(headpos(2,:)-headpos(1,:)), mri.unit);
-  fprintf('voxel size along 2nd dimension (j) : %f %s\n', norm(headpos(3,:)-headpos(1,:)), mri.unit);
-  fprintf('voxel size along 3rd dimension (k) : %f %s\n', norm(headpos(4,:)-headpos(1,:)), mri.unit);
-  fprintf('volume per voxel                   : %f %s^3\n', abs(det(mri.transform(1:3,1:3))), mri.unit);
-end % if hasfield
-

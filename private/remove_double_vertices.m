@@ -1,14 +1,10 @@
 function [pos, tri] = remove_double_vertices(pos, tri)
 
-% REMOVE_DOUBLE_VERTICES removes double vertices from a triangular, tetrahedral or
-% hexahedral mesh, renumbering the vertex-indices for the elements.
+% REMOVE_DOUBLE_VERTICES removes double vertices from a triangular mesh,
+% renumbering the vertex-indices for the triangles.
 %
 % Use as
 %   [pos, tri] = remove_double_vertices(pos, tri)
-%   [pos, tet] = remove_double_vertices(pos, tet)
-%   [pos, hex] = remove_double_vertices(pos, hex)
-%
-% See also REMOVE_VERTICES
 
 % Copyright (C) 2004-2022, Robert Oostenveld and Jan-Mathijs Schoffelen
 %

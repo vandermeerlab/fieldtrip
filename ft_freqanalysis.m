@@ -7,8 +7,8 @@ function [freq] = ft_freqanalysis(cfg, data)
 %   [freq] = ft_freqanalysis(cfg, data)
 %
 % The input data should be organised in a structure as obtained from
-% FT_PREPROCESSING or FT_MVARANALYSIS. The configuration depends on the
-% type of computation that you want to perform.
+% the FT_PREPROCESSING or the FT_MVARANALYSIS function. The configuration
+% depends on the type of computation that you want to perform.
 %
 % The configuration should contain:
 %   cfg.method      = different methods of calculating the spectra
@@ -31,8 +31,8 @@ function [freq] = ft_freqanalysis(cfg, data)
 %                       covariance matrix of the innovation noise.
 %                     'superlet', combines Morlet-wavelet based
 %                       decompositions, see below.
-%                     'irasa', implements Irregular-Resampling Auto-Spectral
-%                       Analysis (IRASA), to separate the fractal components
+%                     'irasa', implements Irregular-Resampling Auto-Spectral 
+%                       Analysis (IRASA), to separate the fractal components 
 %                       from the periodicities in the signal.
 %                     'hilbert', implements the filter-Hilbert method, see
 %                       below.
@@ -138,7 +138,7 @@ function [freq] = ft_freqanalysis(cfg, data)
 %
 % SUPERLET performs time-frequency analysis on any time series trial data using the
 % 'superlet method' based on a frequency-wise combination of Morlet wavelets of varying cycle
-% widths (see Moca et al. 2021, https://doi.org/10.1038/s41467-020-20539-9).
+% widths (see Moca et al. 2019, https://doi.org/10.1101/583732).
 %   cfg.foi     = vector 1 x numfoi, frequencies of interest
 %       OR
 %   cfg.foilim  = [begin end], frequency band of interest
@@ -148,7 +148,7 @@ function [freq] = ft_freqanalysis(cfg, data)
 %   cfg.gwidth  = determines the length of the used wavelets in standard
 %                   deviations of the implicit Gaussian kernel and should
 %                   be chosen >= 3; (default = 3)
-%   cfg.combine = 'additive', 'multiplicative' (default = 'multiplicative')
+%   cfg.combine = 'additive', 'multiplicative' (default = 'additive')
 %                   determines if cycle numbers of wavelets comprising a superlet
 %                   are chosen additively or multiplicatively
 %   cfg.order   = vector 1 x numfoi, superlet order, i.e. number of combined
@@ -166,12 +166,12 @@ function [freq] = ft_freqanalysis(cfg, data)
 %   cfg.width     = scalar, or vector (default: 1), specifying the half bandwidth of the filter;
 %   cfg.edgartnan = 'no' (default) or 'yes', replace filter edges with nans, works only for finite impulse response (FIR) filters, and
 %                     requires a user specification of the filter order
-%
-% For the bandpass filtering the following options can be specified, the default values are as in FT_PREPROC_BANDPASSFILTER, for more
+%   
+% For the bandpass filtering the following options can be specified, the default values are as in FT_PREPROC_BANDPASSFILTER, for more 
 % information see the help of FT_PREPROCESSING
 %   cfg.bpfilttype
 %   cfg.bpfiltord        = (optional) scalar, or vector 1 x numfoi;
-%   cfg.bpfiltdir
+%   cfg.bpfiltdir        
 %   cfg.bpinstabilityfix
 %   cfg.bpfiltdf
 %   cfg.bpfiltwintype
@@ -233,6 +233,7 @@ ft_preamble init
 ft_preamble debug
 ft_preamble loadvar data
 ft_preamble provenance data
+ft_preamble trackconfig
 
 % the ft_abort variable is set to true or false in ft_preamble_init
 if ft_abort
@@ -240,7 +241,7 @@ if ft_abort
 end
 
 % check if the input data is valid for this function
-data = ft_checkdata(data, 'datatype', {'raw+comp', 'raw', 'mvar'}, 'feedback', 'yes', 'hassampleinfo', 'yes');
+data = ft_checkdata(data, 'datatype', {'raw', 'raw+comp', 'mvar'}, 'feedback', 'yes', 'hassampleinfo', 'yes');
 
 % check if the input cfg is valid for this function
 cfg = ft_checkconfig(cfg, 'forbidden',  {'channels', 'trial'}); % prevent accidental typos, see issue 1729
@@ -262,7 +263,7 @@ cfg.trials      = ft_getopt(cfg, 'trials',     'all', 1);
 cfg.channel     = ft_getopt(cfg, 'channel',    'all');
 
 % select channels and trials of interest, by default this will select all channels and trials
-tmpcfg = keepfields(cfg, {'trials', 'channel', 'tolerance', 'showcallinfo', 'trackcallinfo', 'trackusage', 'trackdatainfo', 'trackmeminfo', 'tracktimeinfo', 'checksize'});
+tmpcfg = keepfields(cfg, {'trials', 'channel', 'tolerance', 'showcallinfo', 'trackcallinfo', 'trackconfig', 'trackusage', 'trackdatainfo', 'trackmeminfo', 'tracktimeinfo'});
 data = ft_selectdata(tmpcfg, data);
 % restore the provenance information
 [cfg, data] = rollback_provenance(cfg, data);
@@ -354,8 +355,13 @@ switch cfg.method
     
     cfg.width   = ft_getopt(cfg, 'width',   3);
     cfg.gwidth  = ft_getopt(cfg, 'gwidth',  3);
-    cfg.combine = ft_getopt(cfg, 'combine', 'multiplicative');
-    cfg.order   = ft_getopt(cfg, 'order',   []);
+    cfg.combine = ft_getopt(cfg, 'combine', 'additive');
+    cfg.order   = ft_getopt(cfg, 'order',   ones(1, numel(cfg.foi)));
+    if numel(cfg.order) == 1
+      cfg.order = cfg.order.*length(cfg.foi);
+    elseif numel(cfg.order) ~= numel(cfg.foi)
+      ft_error('cfg.foi must have the same number of elements as cfg.foi, or must be a scalar');
+    end
     
   case 'tfr'
     cfg = ft_checkconfig(cfg, 'renamed', {'waveletwidth', 'width'});
@@ -625,14 +631,6 @@ for itrial = 1:ntrials
       % equivalent one-liners:
       %   multiplicative: cycles = arrayfun(@(order) arrayfun(@(wl_num) cfg.width*wl_num, 1:order), cfg.order,'uni',0)
       %   additive: cycles = arrayfun(@(order) arrayfun(@(wl_num) cfg.width+wl_num-1, 1:order), cfg.order,'uni',0)
-      if isempty(cfg.order)
-        ft_error('cfg.order should be defined');
-      elseif numel(cfg.order) == 1
-        cfg.order = cfg.order.*ones(1, numel(cfg.foi));
-      elseif numel(cfg.order) ~= numel(cfg.foi)
-        ft_error('cfg.foi must have the same number of elements as cfg.foi, or must be a scalar');
-      end
-      
       order_int = ceil(cfg.order);
       cycles = cell(length(cfg.foi), 1);
       for i_f = 1:length(cfg.foi)
@@ -650,26 +648,26 @@ for itrial = 1:ntrials
       end
       
       % compute superlets
-      
+      spectrum = NaN(nchan, length(cfg.foi), length(cfg.toi));
       % index of 'freqoi' value in 'options'
       idx_freqoi = find(ismember(options(1:2:end), 'freqoi'))*2;
       foi = options{idx_freqoi};
       for i_f = 1:length(cfg.foi)
         % collext individual wavelets' responses per frequency
+        spec_f = NaN(order_int(i_f), nchan, length(cfg.toi));
         opt = options;
         opt{idx_freqoi} = cfg.foi(i_f);
         % compute responses for individual wavelets
         for i_wl = 1:order_int(i_f)
-          [spec_f(:,:,:,i_wl), dum, toi] = ft_specest_wavelet(dat, time, 'timeoi', cfg.toi, 'width', cycles{i_f}(i_wl), 'gwidth', cfg.gwidth, opt{:}, 'feedback', fbopt);
+          [spec_f(i_wl, :, :), dum, toi] = ft_specest_wavelet(dat, time, 'timeoi', cfg.toi, 'width', cycles{i_f}(i_wl), 'gwidth', cfg.gwidth, opt{:}, 'feedback', fbopt);
         end
-        spec_f = permute(spec_f, [4 1 2 3]); 
         if floor(cfg.order(i_f)) ~= order_int(i_f)
-            spec_f(i_wl, :, :, :) = spec_f(i_wl, :, :, :) .^ rem(cfg.order(i_f), 1);
+            spec_f(i_wl, :, :) = spec_f(i_wl, :, :) .^ rem(cfg.order(i_f), 1);
         end
         % geometric mean across individual wavelets
         spectrum(:, i_f, :) = prod(spec_f, 1) .^ (1 / cfg.order(i_f));
-        clear spec_f
       end
+      clear spec_f
       
       % the following variable is created to keep track of the number of
       % trials per time bin and is needed for proper normalization if
@@ -993,7 +991,7 @@ if powflg
     opt.aperiodic_mode      = ft_getopt(opt, 'aperiodic_mode',    opts_bst.apermode.Value);
     opt.peak_threshold      = ft_getopt(opt, 'peak_threshold',    2);   % 2 std dev: parameter for interface simplification
     opt.return_spectrum     = ft_getopt(opt, 'return_spectrum',   1);   % SPM/FT: set to 1
-    opt.border_threshold    = ft_getopt(opt, 'border_threshold',  1);   % 1 std dev: proximity to edge of spectrum, static in Python
+    opt.border_threshold    = ft_getopt(opt, 'border_threshold',  1);   % 1 std dev: proximity to edge of spectrum, static in Python 
     % Matlab-only options
     opt.power_line          = ft_getopt(opt, 'power_line',        '50'); % for some reason it should be a string, if you don't want a notch, use 'inf'. Brainstorm's default is '60'
     opt.peak_type           = ft_getopt(opt, 'peak_type',         opts_bst.peaktype.Value);
@@ -1094,6 +1092,7 @@ end
 
 % do the general cleanup and bookkeeping at the end of the function
 ft_postamble debug
+ft_postamble trackconfig
 ft_postamble previous   data
 ft_postamble provenance freq
 ft_postamble history    freq

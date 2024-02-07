@@ -39,7 +39,7 @@ function bnd = prepare_mesh_manual(cfg, mri)
 
 global obj
 
-mri = ft_checkdata(mri, 'datatype', {'volume', 'segmentation'});
+mri = ft_checkdata(mri, 'datatype', {'volume', 'segmentation'}, 'hasunit', 'yes');
 
 hasheadshape = isfield(cfg, 'headshape');
 hasbnd       = isfield(cfg, 'bnd');  % FIXME why is this in cfg?

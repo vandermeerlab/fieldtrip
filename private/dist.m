@@ -1,20 +1,15 @@
-function [d] = dist(x, y)
+function [d] = dist(x)
 
-% DIST computes the Euclidian distance between the columns of the input matrix or
-% between the rows and columns of two input matrices.
-%
-% This function serves as a drop-in replacement for the dist function in the Neural
-% Networks toolbox.
+% DIST computes the euclidian distance between the columns of the input matrix
 %
 % Use as
-%   [d] = dist(x')
-% where x is for example an Nx3 matrix with vertices in 3D space, or as
-%   [d] = dist(x, y')
-% where x and y are Nx3 and Mx3 matrices with vertices in 3D space
+%   [d] = dist(x)
+% where x is for example Nx3 for points in 3D space.
 %
-% See also DSEARCHN, KNNSEARCH
+% This function serves as a replacement for the dist function in the Neural
+% Networks toolbox.
 
-% Copyright (C) 2005-2023, Robert Oostenveld
+% Copyright (C) 2005, Robert Oostenveld
 %
 % This file is part of FieldTrip, see http://www.fieldtriptoolbox.org
 % for the documentation and details.
@@ -34,36 +29,12 @@ function [d] = dist(x, y)
 %
 % $Id$
 
-if nargin==1
-  n = size(x,2);
-  d = zeros(n,n);
-  for i=1:n
-    for j=(i+1):n
-      d(i,j) = sqrt(sum((x(:,i)-x(:,j)).^2));
-      d(j,i) = d(i,j);
-    end
+n = size(x,2);
+d = zeros(n,n);
+for i=1:n
+  for j=(i+1):n
+    d(i,j) = sqrt(sum((x(:,i)-x(:,j)).^2));
+    d(j,i) = d(i,j);
   end
+end
 
-elseif nargin==2
-
-  n = size(x,1);
-  m = size(y,2);
-  d = zeros(n,m);
-
-  if m==1
-    % do it the efficient way
-    x(:,1) = x(:,1) - y(1);
-    x(:,2) = x(:,2) - y(2);
-    x(:,3) = x(:,3) - y(3);
-    d = sqrt(sum(x.^2,2));
-
-  else
-    % do it the normal way
-    for i=1:n
-      for j=1:m
-        d(i,j) = sqrt(sum((x(i,:)-y(:,j)').^2));
-      end
-    end
-  end
-
-end % if nargin is 1 or 2
